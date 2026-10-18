@@ -778,6 +778,19 @@ filters.forEach(button => {
     });
 });
 </script>
+<!-- PULSE AFRICA SUPABASE CONNECTION -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const PULSE_AFRICA_URL = 'https://nthmftejdxugtoiablom.supabase.co';
 
+  const PULSE_AFRICA_KEY = 'sb_publishable_YxUISLIJ2yhV6_zTME7zpg_WsylzPzH';
+
+  const pulseAfricaDB = window.supabase.createClient(
+    PULSE_AFRICA_URL,
+    PULSE_AFRICA_KEY
+  );
+
+  console.log('PULSE AFRICA Supabase client initialized!');
+</script>
 </body>
                     </html>
