@@ -792,5 +792,121 @@ filters.forEach(button => {
 
   console.log('PULSE AFRICA Supabase client initialized!');
 </script>
+    <!-- PULSE AFRICA LIVE VOTING -->
+<section id="pulse-live-voting" style="max-width:800px;margin:30px auto;padding:20px;font-family:Arial,sans-serif;">
+  <h2 style="text-align:center;">🗳️ Vote for Your Favourite Platform</h2>
+  <p style="text-align:center;">Your vote helps shape the PULSE AFRICA chart.</p>
+
+  <div id="pulse-vote-status" role="status" style="text-align:center;margin:12px 0;">
+    Loading live rankings...
+  </div>
+
+  <ol id="pulse-live-chart" style="padding-left:25px;"></ol>
+</section>
+
+<script>
+(async function () {
+  const chart = document.getElementById('pulse-live-chart');
+  const status = document.getElementById('pulse-vote-status');
+  const voterKey = 'pulse_africa_voter_id';
+
+  let voterId = localStorage.getItem(voterKey);
+
+  if (!voterId) {
+    voterId = (crypto.randomUUID
+      ? crypto.randomUUID()
+      : 'voter-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+    localStorage.setItem(voterKey, voterId);
+  }
+
+  async function loadChart() {
+    status.textContent = 'Loading live rankings...';
+
+    const { data: platforms, error: platformError } =
+      await pulseAfricaDB
+        .from('platforms')
+        .select('id, name');
+
+    if (platformError) {
+      status.textContent = 'Could not load platforms: ' + platformError.message;
+      return;
+    }
+
+    const { data: votes, error: voteError } =
+      await pulseAfricaDB
+        .from('votes')
+        .select('platform_id');
+
+    if (voteError) {
+      status.textContent = 'Could not load votes: ' + voteError.message;
+      return;
+    }
+
+    const totals = {};
+
+    platforms.forEach(platform => {
+      totals[platform.id] = 0;
+    });
+
+    votes.forEach(vote => {
+      if (Object.prototype.hasOwnProperty.call(totals, vote.platform_id)) {
+        totals[vote.platform_id]++;
+      }
+    });
+
+    platforms.sort((a, b) =>
+      totals[b.id] - totals[a.id] || a.name.localeCompare(b.name)
+    );
+
+    chart.replaceChildren();
+
+    platforms.forEach((platform, index) => {
+      const item = document.createElement('li');
+      item.style.cssText = 'margin:12px 0;padding:14px;border:1px solid #ddd;border-radius:10px;';
+
+      const title = document.createElement('strong');
+      title.textContent = `${platform.name} — ${totals[platform.id]} votes`;
+
+      const button = document.createElement('button');
+      button.textContent = 'Vote';
+      button.style.cssText = 'margin-left:12px;padding:8px 14px;cursor:pointer;';
+      button.setAttribute('aria-label', 'Vote for ' + platform.name);
+
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        status.textContent = 'Submitting your vote...';
+
+        const { error } = await pulseAfricaDB
+          .from('votes')
+          .insert({
+            platform_id: platform.id,
+            voter_id: voterId
+          });
+
+        if (error) {
+          status.textContent =
+            'Vote not recorded: ' + error.message +
+            '. Your database may need a voting policy or different column names.';
+          button.disabled = false;
+          return;
+        }
+
+        status.textContent = 'Your vote was recorded!';
+        await loadChart();
+      });
+
+      item.append(title, button);
+      chart.appendChild(item);
+    });
+
+    status.textContent = 'Live rankings loaded. Total votes: ' + votes.length;
+  }
+
+  await loadChart();
+
+  // Refresh rankings so votes from other visitors can appear.
+  setInterval(loadChart, 15000);
+})();
+</script>
 </body>
                     </html>
